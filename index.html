@@ -73,7 +73,8 @@ tbody tr:hover{background:#f8faff}
     </div>
     <div id="pasteBox" style="display:none;margin-top:12px">
       <textarea id="rawInput" placeholder="粘贴群里的单子内容..."></textarea>
-      <div style="margin-top:8px;display:flex;gap:8px">
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="password" id="addKey" placeholder="输入密钥" style="padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;width:160px">
         <button class="btn btn-primary btn-sm" onclick="parseAndAdd()">🔍 识别并添加</button>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('rawInput').value=''">清空</button>
       </div>
@@ -2131,6 +2132,13 @@ function detectSubject(text) {
 }
 
 function parseAndAdd() {
+  // 密钥验证
+  const key = document.getElementById('addKey').value.trim();
+  if (key !== '17334099849Fjz') {
+    showToast('🔒 密钥错误，无法添加');
+    return;
+  }
+
   const raw = document.getElementById('rawInput').value.trim();
   if (!raw) { showToast('⚠️ 请先粘贴单子内容'); return; }
 
