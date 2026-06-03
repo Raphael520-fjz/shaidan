@@ -2079,23 +2079,83 @@ function togglePaste() {
   box.style.display = box.style.display === 'none' ? 'block' : 'none';
 }
 
+function detectDistrict(text) {
+  for (const d of DISTRICTS) if (text.includes(d)) return d;
+  const m = text.match(/(?:地址|上课地址|辅导地点|联系地址|学员地址|地点|位置)[：:\s]*[#]?([^\s，,\n]+)/);
+  if (m) for (const d of DISTRICTS) if (m[1] && (m[1].includes(d) || d.includes(m[1]))) return d;
+  return '待识别';
+}
+
+function detectGrade(text) {
+  const patterns = [
+    [/四岁半|四岁|五岁|六岁|三岁|2岁半|中班|大班|幼儿园|幼小衔接|学前|启蒙|宝宝/, '幼小衔接'],
+    [/一年级|1年级|一升二|幼升小/, '小学一年级'],
+    [/二年级|2年级|二升三/, '小学二年级'],
+    [/三年级|3年级|三升四/, '小学三年级'],
+    [/四年级|4年级|四升五|新4/, '小学四年级'],
+    [/五年级|5年级|五升六/, '小学五年级'],
+    [/六年级|6年级|预初|六升七|小升初|g6|G6/, '小学六年级'],
+    [/初一|七年级|7年级|七升八/, '初一'],
+    [/初二|八年级|8年级|八升九|g8|G8/, '初二'],
+    [/初三|九年级|9年级|升初三|初升高/, '初三'],
+    [/高一|10年级|升高一|高一升高二|准高二/, '高一'],
+    [/高二|11年级|升高二|准高三|新高三|升高三/, '高二'],
+    [/高三|12年级|高考/, '高三'],
+    [/成人/, '成人'],
+  ];
+  for (const [re, g] of patterns) if (re.test(text)) return g;
+  return '待识别';
+}
+
+function detectSubject(text) {
+  const s = text.toLowerCase();
+  if (s.includes('奥数') || s.includes('浅奥') || s.includes('amc') || s.includes('逻辑思维')) return '奥数';
+  if (s.includes('数理化')) return '数理化';
+  if (s.includes('语数英') || s.includes('语数外')) return '语数英';
+  if (s.includes('全科') || s.includes('陪读') || s.includes('作辅') || s.includes('作业辅导') || s.includes('陪伴') || s.includes('陪学') || s.includes('陪玩')) return '全科';
+  if (s.includes('雅思') || s.includes('助教')) return '英语';
+  if (s.includes('小提琴') || s.includes('钢琴') || s.includes('古筝') || s.includes('琵琶') || s.includes('单簧管') || s.includes('尤克里里') || s.includes('声乐') || s.includes('乐器') || s.includes('书法') || s.includes('绘画')) return '乐器';
+  if (s.includes('日语')) return '日语';
+  if (s.includes('编程')) return '编程';
+  if (s.includes('游泳') || s.includes('网球') || s.includes('户外') || s.includes('体育')) return '体育';
+  if (s.includes('ket') || s.includes('pet') || s.includes('fce') || s.includes('小托福') || s.includes('口语') || s.includes('英文') || s.includes('英语') || s.includes('启蒙')) return '英语';
+  if (s.includes('语文') || s.includes('拼音') || s.includes('作文') || s.includes('阅读')) return '语文';
+  if (s.includes('数学')) return '数学';
+  if (s.includes('物理')) return '物理';
+  if (s.includes('化学')) return '化学';
+  if (s.includes('生物')) return '生物';
+  if (s.includes('地理')) return '地理';
+  if (s.includes('历史')) return '历史';
+  if (s.includes('政治')) return '政治';
+  return '其他';
+}
+
 function parseAndAdd() {
   const raw = document.getElementById('rawInput').value.trim();
   if (!raw) { showToast('⚠️ 请先粘贴单子内容'); return; }
-  const lines = raw.split('\n').filter(l => l.trim());
+
+  // Split into blocks by blank lines
+  const blocks = raw.split(/\n\s*\n/).filter(b => b.trim());
   let added = 0, skipped = 0;
-  for (const line of lines) {
-    let district = '待识别', grade = '待识别', subject = '待识别';
-    for (const d of DISTRICTS) { if (line.includes(d)) { district = d; break; } }
-    for (const g of GRADES) { if (line.includes(g)) { grade = g; break; } }
-    for (const s of SUBJECTS) { if (line.includes(s)) { subject = s; break; } }
-    const key = `${district}|${grade}|${subject}|${line.slice(0,50)}`;
+
+  for (const block of blocks) {
+    const text = block.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    if (text.length < 15) continue;
+
+    const district = detectDistrict(text);
+    const grade = detectGrade(text);
+    const subject = detectSubject(text);
+
+    if (district === '待识别' && grade === '待识别') continue;
+
+    const key = `${district}|${grade}|${subject}|${text.slice(0,60)}`;
     if (!seen.has(key)) {
       seen.add(key);
-      orders.push({ id: orders.length, district, grade, subject, detail: line });
+      orders.push({ id: orders.length, district, grade, subject, detail: text });
       added++;
     } else { skipped++; }
   }
+
   document.getElementById('rawInput').value = '';
   initFilters();
   render();
